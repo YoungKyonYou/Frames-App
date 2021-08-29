@@ -22,6 +22,11 @@ public class APIController {
         return "test/registerURLTest";
     }
 
+    @GetMapping("/test2")
+    public String test2() {
+        return "test/string";
+    }
+
     @PostMapping("/register")
     @ResponseBody
     public String requestRegisterURL(@RequestParam(name = "frame") MultipartFile frame) throws IOException {

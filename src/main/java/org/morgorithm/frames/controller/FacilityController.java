@@ -8,6 +8,8 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 
 //Controller의 메소드는 한 Client에게서 message를 수신한 다음 다른 Client에게 Broadcast합니다.
 @Controller
@@ -36,4 +38,5 @@ public class FacilityController {
 //        System.out.println("FacilityController2");
         return dto;
     }
+
 }

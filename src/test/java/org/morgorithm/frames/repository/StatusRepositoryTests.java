@@ -261,6 +261,8 @@ public class StatusRepositoryTests {
     @Rollback(false)
     void testAddTestDataForRealTimeStatusUpdate() throws InterruptedException {
         int cnt=(int)(memberRepository.count());
+        System.out.println("cnt:"+cnt);
+        cnt--;
         Long bno=0L;
 
         for(int i=0;i<100;i++){
@@ -282,6 +284,7 @@ public class StatusRepositoryTests {
             Status status=Status.builder().member(member).facility(facility).state(stat).temperature(Double.valueOf(String.format("%.1f",+randomValue))).build();
             status.setRegDate(now);
             statusRepository.save(status);
+            System.out.println(status.toString());
             Thread.sleep(3000);
             System.out.println("데이터 삽입");
         }

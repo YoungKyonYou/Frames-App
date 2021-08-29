@@ -1,0 +1,258 @@
+<html lang="en" th:with="requireLogin=true" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>동선시각화</title>
+    <link rel="stylesheet" th:href="@{/css/status/list.css}" type="text/css">
+    <style>
+        /* Always set the map height explicitly to define the size of the div
+         * element that contains the map. */
+        #map {
+            height: 100%;
+        }
+
+        /* Optional: Makes the sample page fill the window. */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<th:block th:replace="~{layout/adminLTE :: setContent(~{this::content} )}">
+
+    <th:block th:fragment="content">
+        <div class="content-header">
+            <div class="container-fluid">
+                <div class="row mb-2">
+                    <div class="col-sm-6">
+                        <h1 class="m-0">동선시각화</h1>
+                    </div><!-- /.col -->
+                    <div class="col-sm-6">
+                        <ol class="breadcrumb float-sm-right">
+                            <li class="breadcrumb-item"><a href="/">Home</a></li>
+                            <li class="breadcrumb-item active">map-tracker</li>
+                        </ol>
+                    </div><!-- /.col -->
+                </div><!-- /.row -->
+            </div><!-- /.container-fluid -->
+        </div>
+        <div aria-hidden="true" aria-labelledby="member-modal-title" class="modal fade" id="member-modal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="member-modal-title">멤버 조회</h5>
+                        <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+                    </div>
+                    <div class="modal-body">
+
+                        <div class="form-group">
+                            <input class="form-control" id="member-search" placeholder="이름을 입력하세요 ex) 홍길동">
+                        </div>
+
+                        <div class="overflow-auto" style="height: 640px">
+                            <table class="table table-striped table-hover" id="member-table">
+                                <thead>
+                                <colgroup>
+                                    <col style="width:20%">
+                                    <col style="width:30%">
+                                    <col style="width:50%">
+                                </colgroup>
+
+                                <tr>
+                                    <th>멤버번호</th>
+                                    <th>이름</th>
+                                    <th>전화번호</th>
+                                </tr>
+                                </thead>
+
+                                <tbody>
+                                <tr class="memberRow" th:each="member: ${members}">
+                                    <td>[[${member.mno}]]</td>
+                                    <td>[[${member.name}]]</td>
+                                    <td>[[${member.phone}]]</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">닫기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <section class="content">
+            <div class="container-fluid">
+                <form action="/map/tracker" id="searchForm" method="get">
+                    <div class="input-group">
+                        <div class="table-filter">
+                                <div class="filter-group">
+                                    <label style="width: 80px">날짜</label>
+                                    <input class="form-control" id="filterDateFrom" name="date" style="width: 200px"
+                                           th:value="${trackerInfoDTO.date}" type="date">
+                                </div>
+                                <div class="filter-group">
+                                    <label style="width: 80px">멤버번호</label>
+                                    <div class="input-group d-inline">
+                                        <input class="form-control" id="filterMemberNo" name="mno" style="width: 200px"
+                                               th:value="${trackerInfoDTO.mno}" type="text">
+                                        <button class="btn btn-outline-primary btn-sm" data-bs-target="#member-modal" data-bs-toggle="modal"
+                                                type="button">검색</button>
+                                    </div>
+                                </div>
+                                <div class="filter-group">
+                                     <button class="btn btn-outline-secondary btn-search" type="submit">조회</button>
+                                </div>
+                        </div>
+                    </div>
+                </form>
+
+                <div id="map"></div>
+            </div>
+        </section>
+
+        <script>
+            const memberRows = [].slice.call(document.querySelectorAll(".memberRow"));
+
+            $('#member-search').on('propertychange change keyup paste input', function () {
+                let qsVal = $('#member-search').val().toLowerCase();
+                memberRows.forEach(el => {
+                    if (el.cells[1].innerText.toLowerCase().startsWith(qsVal) || qsVal.length == 0) {
+                        el.classList.remove("d-none");
+                    } else {
+                        el.classList.add("d-none");
+                    }
+                });
+            })
+
+            $('.memberRow').on('click', function () {
+                const mno = $(this)[0].cells[0].innerText;
+                $('#member-modal').modal('toggle');
+                $('#filterMemberNo').val(mno);
+            });
+        </script>
+
+        <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=27318fd9ee3426317ec44ef5a3995084"
+                type="text/javascript"></script>
+
+        <script th:inline="javascript">
+        var searchForm = $("#searchForm");
+        var bnoLength = [[${result.length}]];
+        var resultBno = [[${result.bno}]];
+        var bNames = [[${bName}]];
+        var trackingBno = [[${result.trackingBno}]];
+        var dates = [[${result.dates}]];
+        var state = [[${result.entranceStatus}]];
+
+        var buildingLat = [37.340392700347856, 37.340316992115, 37.339971636615026, 37.339679248826315, 37.33966775898154, 37.340194312542195, 37.33936705323829, 37.34157599867022, 37.34112695570915, 37.34061153901412,37.33863530586803];
+        var buildingLng = [126.73283949790697, 126.73322909658563, 126.73391305400244, 126.73411157035065, 126.73501439847898, 126.73476992262974, 126.73552327097035, 126.73215255585146, 126.73280304174777, 126.73398979131457,126.73466820031602];
+
+
+        $('.btn-search').click(function (e) {
+
+            searchForm.submit();
+
+
+        });
+
+        var mapContainer = document.getElementById('map'), // 지도를 표시할 div
+            mapOption = {
+                center: new kakao.maps.LatLng(37.34036426555652, 126.73421636243914), // 지도의 중심좌표
+                level: 3 // 지도의 확대 레벨
+            };
+
+        // 지도를 표시할 div와  지도 옵션으로  지도를 생성합니다
+        var map = new kakao.maps.Map(mapContainer, mapOption);
+        // 마커를 표시할 위치와 내용을 가지고 있는 객체 배열입니다
+
+        var positions = [];
+        //positions[0]["content"]+="<div>테스트</div>"
+        //console.log("bnoLength:" + bnoLength);
+        for (var i = 0; i < bnoLength; i++) {
+            positions.push({"content": '', "latlng": null});
+        }
+        console.log("positions:"+positions);
+        if (state !== null) {
+            for (var i = 0; i < bnoLength; i++) {
+                positions[trackingBno[i] - 1]["content"] = "<div>";
+                positions[trackingBno[i] - 1]["content"] += bNames[trackingBno[i] - 1];
+                positions[trackingBno[i] - 1]["content"] += "</div>";
+            }
+        }
+        console.log("bnoLength:"+bnoLength);
+        for (var i = 0; i < bnoLength; i++) {
+            positions[i]["content"] = "<div>"
+            positions[i]["content"] += bNames[i];
+            positions[i]["content"] += "</div>";
+            if (trackingBno === null){
+                positions[i]["latlng"] = new kakao.maps.LatLng(buildingLat[i], buildingLng[i]);
+            }
+            else
+                positions[i]["latlng"] = new kakao.maps.LatLng(buildingLat[trackingBno[i] - 1], buildingLng[trackingBno[i] - 1]);
+        }
+        if (state !== null) {
+            console.log("test" + positions[0]["content"]);
+            console.log("test" + positions[9]["content"]);
+            console.log("positions.lenth:" + positions.length);
+        }
+        console.log("bnoLength:"+bnoLength);
+        for (var i = 0; i < bnoLength; i++) {
+            // 마커를 생성합니다
+            var marker = new kakao.maps.Marker({
+                map: map, // 마커를 표시할 지도
+                position: positions[i].latlng// 마커의 위치
+            });
+
+            // 마커에 표시할 인포윈도우를 생성합니다
+            var infowindow = new kakao.maps.InfoWindow({
+                content: trackingBno !== null ? positions[trackingBno[i] - 1].content : positions[i].content // 인포윈도우에 표시할 내용
+            });
+
+            // 마커에 mouseover 이벤트와 mouseout 이벤트를 등록합니다
+            // 이벤트 리스너로는 클로저를 만들어 등록합니다
+            // for문에서 클로저를 만들어 주지 않으면 마지막 마커에만 이벤트가 등록됩니다
+            kakao.maps.event.addListener(marker, 'mouseover', makeOverListener(map, marker, infowindow));
+            kakao.maps.event.addListener(marker, 'mouseout', makeOutListener(infowindow));
+        }
+
+
+        // 인포윈도우를 표시하는 클로저를 만드는 함수입니다
+        function makeOverListener(map, marker, infowindow) {
+            return function () {
+                infowindow.open(map, marker);
+            };
+        }
+
+        // 인포윈도우를 닫는 클로저를 만드는 함수입니다
+        function makeOutListener(infowindow) {
+            return function () {
+                infowindow.close();
+            };
+        }
+
+        // 선을 구성하는 좌표 배열입니다. 이 좌표들을 이어서 선을 표시합니다
+        var linePath = [];
+        for (var i = 0; i < dates.length; i++) {
+            linePath.push(new kakao.maps.LatLng(buildingLat[trackingBno[i] - 1], buildingLng[trackingBno[i] - 1]));
+        }
+
+
+        // 지도에 표시할 선을 생성합니다
+        var polyline = new kakao.maps.Polyline({
+            path: linePath, // 선을 구성하는 좌표배열 입니다
+            strokeWeight: 5, // 선의 두께 입니다
+            strokeColor: '#FF0000', // 선의 색깔입니다
+            strokeOpacity: 0.7, // 선의 불투명도 입니다 1에서 0 사이의 값이며 0에 가까울수록 투명합니다
+            strokeStyle: 'solid', // 선의 스타일입니다
+            endArrow: 1
+        });
+
+        // 지도에 선을 표시합니다
+        polyline.setMap(map);
+
+    </script>
+    </th:block>
+
+</th:block>
